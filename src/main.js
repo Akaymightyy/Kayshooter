@@ -1,4 +1,8 @@
+import './ui.css';
 import { initTouch } from './touch.js';
+import { Hud } from './hud.js';
+import { initSettings } from './settings.js';
+import { initLobby } from './lobby.js';
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
@@ -66,6 +70,9 @@ const game = ctx.game;
 const audio = ctx.audio;
 const demoMode = game.demoMode;
 const touchMode = initTouch(player, game, dom);
+const settings = initSettings({ composer, bloom, audio: ctx.audio, player });
+initLobby(settings);
+const hud = demoMode ? null : new Hud(ctx, dom, settings);
 if (demoMode) ctx.player.rig.visible = false;
 
 // ---------------- flow ----------------
@@ -73,6 +80,8 @@ function startGame() {
   audio.init();
   audio.resume();
   audio.startWind();
+  settings.apply();
+  document.getElementById('pauseModal')?.classList.remove('open');
   dom.menuOverlay.classList.add('hidden');
   dom.endOverlay.classList.add('hidden');
   game.paused = false;
@@ -85,8 +94,8 @@ function startGame() {
   if (game.state === 'menu' || game.state === 'end') game.startRound();
 }
 
-dom.menuOverlay.addEventListener('click', startGame);
-dom.endOverlay.addEventListener('click', startGame);
+dom.startBtn.addEventListener('click', startGame);
+dom.againBtn.addEventListener('click', startGame);
 
 document.addEventListener('pointerlockchange', () => {
   if (demoMode || touchMode) return;
@@ -128,7 +137,6 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
   composer.setSize(window.innerWidth, window.innerHeight);
-  bloom.setSize(window.innerWidth, window.innerHeight);
 });
 
 // ---------------- demo (cinematic orbit for screenshots) ----------------
@@ -162,6 +170,7 @@ function loop() {
     game.update(dt);
   } else {
     game.update(dt);
+    if (hud) hud.update(dt);
   }
 
   composer.render();

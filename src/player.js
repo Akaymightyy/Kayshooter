@@ -215,8 +215,8 @@ export class Player {
 
   look(dx, dy) {
     if (!this.alive) return;
-    this.yaw -= dx * 0.0021;
-    this.pitch -= dy * 0.0021;
+    this.yaw -= dx * 0.0021 * (this.sens || 1);
+    this.pitch -= dy * 0.0021 * (this.sens || 1);
     this.pitch = Math.max(-1.5, Math.min(1.5, this.pitch));
     this.swayX += dx * 0.00045;
     this.swayY += dy * 0.00045;

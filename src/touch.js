@@ -9,15 +9,15 @@ export function initTouch(player, game, dom) {
     #touchUI { position: fixed; inset: 0; z-index: 5; pointer-events: none; }
     #touchUI .tb { position: absolute; border-radius: 50%; display: flex; align-items: center; justify-content: center;
       font: 700 12px/1 system-ui, sans-serif; letter-spacing: .08em; color: #eafffb;
-      background: rgba(20,30,36,.45); border: 2px solid rgba(53,224,208,.7); pointer-events: auto; }
-    #touchUI .tb.on { background: rgba(53,224,208,.55); }
-    #tbFire { right: 22px; bottom: 90px; width: 92px; height: 92px; border-color: rgba(255,63,174,.85); font-size: 14px; }
+      background: rgba(18,22,20,.55); border: 2px solid rgba(163,185,85,.75); pointer-events: auto; backdrop-filter: blur(3px); }
+    #touchUI .tb.on { background: rgba(255,106,26,.6); }
+    #tbFire { right: 22px; bottom: 90px; width: 92px; height: 92px; border-color: #ff6a1a; font-size: 14px; box-shadow: 0 0 18px rgba(255,106,26,.35); }
     #tbJump { right: 130px; bottom: 40px; width: 70px; height: 70px; }
     #tbReload { right: 22px; bottom: 200px; width: 56px; height: 56px; }
     #tbGren { right: 92px; bottom: 150px; width: 52px; height: 52px; }
     #joyBase { position: absolute; width: 110px; height: 110px; margin: -55px 0 0 -55px; border-radius: 50%;
       border: 2px solid rgba(255,255,255,.35); background: rgba(255,255,255,.08); display: none; }
-    #joyKnob { position: absolute; width: 46px; height: 46px; left: 32px; top: 32px; border-radius: 50%; background: rgba(53,224,208,.6); }
+    #joyKnob { position: absolute; width: 46px; height: 46px; left: 32px; top: 32px; border-radius: 50%; background: rgba(163,185,85,.7); }
   `;
   document.head.appendChild(css);
 
@@ -32,15 +32,8 @@ export function initTouch(player, game, dom) {
   document.body.appendChild(ui);
   const joyBase = ui.querySelector('#joyBase'), joyKnob = ui.querySelector('#joyKnob');
 
-  // menu text for phones
-  const q = (s) => document.querySelector(s);
-  const ctl = q('.controls'); if (ctl) ctl.style.display = 'none';
-  const cta = q('#startBtn'); if (cta) cta.textContent = 'Tap to Deploy';
-  const again = q('#againBtn'); if (again) again.textContent = 'Tap to Redeploy';
-  const note = q('.note'); if (note) note.textContent = 'Left thumb: move. Right side: drag to aim. Landscape works best.';
-
   const roles = new Map();
-  const live = () => dom.menuOverlay.classList.contains('hidden') && dom.endOverlay.classList.contains('hidden');
+  const live = () => dom.menuOverlay.classList.contains('hidden') && dom.endOverlay.classList.contains('hidden') && !document.querySelector('.ks-modal.open');
   const setMove = (f, b, l, r) => {
     player.onKey('KeyW', f); player.onKey('KeyS', b); player.onKey('KeyA', l); player.onKey('KeyD', r);
   };
@@ -49,6 +42,7 @@ export function initTouch(player, game, dom) {
     else if (k === 'jump') player.onKey('Space', down);
     else if (k === 'reload' && down) player.onKey('KeyR', true);
     else if (k === 'gren' && down) player.onKey('KeyG', true);
+    else if (k === 'pause' && down) window.dispatchEvent(new Event('ks-pause'));
   };
 
   window.addEventListener('touchstart', (e) => {
