@@ -1,3 +1,4 @@
+import { initTouch } from './touch.js';
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
@@ -64,6 +65,7 @@ const player = ctx.player;
 const game = ctx.game;
 const audio = ctx.audio;
 const demoMode = game.demoMode;
+const touchMode = initTouch(player, game, dom);
 if (demoMode) ctx.player.rig.visible = false;
 
 // ---------------- flow ----------------
@@ -75,7 +77,11 @@ function startGame() {
   dom.endOverlay.classList.add('hidden');
   game.paused = false;
   if (demoMode) return;
-  try { renderer.domElement.requestPointerLock(); } catch (e) { /* ignore */ }
+  if (touchMode) {
+    try { document.documentElement.requestFullscreen().then(() => screen.orientation.lock('landscape')).catch(() => {}); } catch (e) { /* ignore */ }
+  } else {
+    try { renderer.domElement.requestPointerLock(); } catch (e) { /* ignore */ }
+  }
   if (game.state === 'menu' || game.state === 'end') game.startRound();
 }
 
@@ -83,7 +89,7 @@ dom.menuOverlay.addEventListener('click', startGame);
 dom.endOverlay.addEventListener('click', startGame);
 
 document.addEventListener('pointerlockchange', () => {
-  if (demoMode) return;
+  if (demoMode || touchMode) return;
   const locked = document.pointerLockElement === renderer.domElement;
   if (!locked && game.state === 'live' && !game.paused) {
     game.paused = true;
