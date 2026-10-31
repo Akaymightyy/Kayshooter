@@ -17,93 +17,137 @@ export const TEAMS = {
 export function buildBotMesh(teamKey) {
   const T = TEAMS[teamKey];
   const g = new THREE.Group();
-  const armorMat = new THREE.MeshStandardMaterial({ color: T.armor, roughness: 0.55, metalness: 0.35 });
-  const darkMat = new THREE.MeshStandardMaterial({ color: T.dark, roughness: 0.5, metalness: 0.45 });
-  const accentMat = new THREE.MeshStandardMaterial({ color: T.accent, roughness: 0.45, metalness: 0.4 });
-  const visorMat = new THREE.MeshStandardMaterial({ color: T.visor, emissive: T.visor, emissiveIntensity: 2.4 });
+  const armorMat = new THREE.MeshStandardMaterial({ color: T.armor, roughness: 0.45, metalness: 0.5, envMapIntensity: 0.9 });
+  const darkMat = new THREE.MeshStandardMaterial({ color: T.dark, roughness: 0.4, metalness: 0.65 });
+  const accentMat = new THREE.MeshStandardMaterial({ color: T.accent, roughness: 0.4, metalness: 0.45 });
+  const visorMat = new THREE.MeshStandardMaterial({ color: T.visor, emissive: T.visor, emissiveIntensity: 2.6, toneMapped: false });
   const flameMat = new THREE.MeshBasicMaterial({
     color: T.flame, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
+  });
+  const flameCoreMat = new THREE.MeshBasicMaterial({
+    color: 0xfff3d6, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
   });
 
   const parts = {};
   const cast = (m) => { m.castShadow = true; return m; };
 
-  // legs
+  // legs: thigh + armoured shin + boot
   parts.legL = new THREE.Group();
-  const legL = cast(new THREE.Mesh(new THREE.CapsuleGeometry(0.085, 0.5, 3, 8), darkMat));
-  legL.position.y = -0.3;
-  parts.legL.add(legL);
+  const thighL = cast(new THREE.Mesh(new THREE.CapsuleGeometry(0.095, 0.26, 3, 8), darkMat));
+  thighL.position.y = -0.16;
+  parts.legL.add(thighL);
+  const shinL = cast(new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.32, 0.19), armorMat));
+  shinL.position.y = -0.42;
+  parts.legL.add(shinL);
+  const bootL = cast(new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.11, 0.3), darkMat));
+  bootL.position.set(0, -0.6, 0.04);
+  parts.legL.add(bootL);
   parts.legL.position.set(0.15, 0.82, 0);
   parts.legR = parts.legL.clone();
   parts.legR.position.x = -0.15;
   g.add(parts.legL, parts.legR);
 
-  // torso
-  parts.torso = cast(new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 0.3), armorMat));
-  parts.torso.position.y = 1.12;
+  // torso: armoured chest + abdomen + chest plate
+  parts.torso = cast(new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.44, 0.34), armorMat));
+  parts.torso.position.y = 1.17;
   g.add(parts.torso);
-  const chest = cast(new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.3, 0.1), accentMat));
-  chest.position.set(0, 1.2, 0.17);
+  const abdomen = cast(new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.24, 0.27), darkMat));
+  abdomen.position.y = 0.92;
+  g.add(abdomen);
+  const chest = cast(new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.26, 0.1), accentMat));
+  chest.position.set(0, 1.22, 0.2);
   g.add(chest);
+  const collar = cast(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.08, 0.32), darkMat));
+  collar.position.set(0, 1.42, 0);
+  g.add(collar);
+  // angular shoulder pauldrons
   for (const s of [-1, 1]) {
-    const pad = cast(new THREE.Mesh(new THREE.SphereGeometry(0.115, 10, 8), accentMat));
-    pad.position.set(s * 0.31, 1.4, 0);
+    const pad = cast(new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.15, 0.28), accentMat));
+    pad.position.set(s * 0.35, 1.38, 0);
+    pad.rotation.z = s * -0.22;
     g.add(pad);
   }
 
-  // head
-  parts.head = cast(new THREE.Mesh(new THREE.SphereGeometry(0.165, 12, 10), armorMat));
+  // head: helmet + faceplate + big glowing visor + antenna
+  parts.head = new THREE.Group();
+  const helm = cast(new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 10), armorMat));
+  parts.head.add(helm);
+  const faceplate = new THREE.Mesh(new THREE.BoxGeometry(0.27, 0.13, 0.12), darkMat);
+  faceplate.position.set(0, -0.015, 0.1);
+  parts.head.add(faceplate);
+  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.23, 0.075, 0.05), visorMat);
+  visor.position.set(0, 0.005, 0.165);
+  parts.head.add(visor);
+  const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.22, 5), darkMat);
+  antenna.position.set(0.14, 0.14, -0.04);
+  antenna.rotation.z = -0.25;
+  parts.head.add(antenna);
   parts.head.position.y = 1.68;
   g.add(parts.head);
-  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.07, 0.06), visorMat);
-  visor.position.set(0, 0.01, 0.14);
-  parts.head.add(visor);
 
-  // arms
+  // arms: upper arm + armoured forearm
   parts.armL = new THREE.Group();
-  const armLMesh = cast(new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.42, 3, 8), armorMat));
-  armLMesh.position.y = -0.26;
-  parts.armL.add(armLMesh);
-  parts.armL.position.set(0.32, 1.36, 0);
+  const upperL = cast(new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.2, 3, 8), armorMat));
+  upperL.position.y = -0.14;
+  parts.armL.add(upperL);
+  const foreL = cast(new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.24, 0.16), darkMat));
+  foreL.position.y = -0.34;
+  parts.armL.add(foreL);
+  parts.armL.position.set(0.33, 1.36, 0);
   parts.armR = parts.armL.clone();
-  parts.armR.position.x = -0.32;
+  parts.armR.position.x = -0.33;
   g.add(parts.armL, parts.armR);
 
   // gun (in right hand, pointing +Z)
   parts.gun = new THREE.Group();
-  const gunBody = cast(new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.13, 0.5), darkMat));
+  const gunBody = cast(new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.14, 0.52), darkMat));
   parts.gun.add(gunBody);
-  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.3, 8), darkMat);
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.3, 8), armorMat);
   barrel.rotation.x = Math.PI / 2;
-  barrel.position.z = 0.38;
+  barrel.position.z = 0.4;
   parts.gun.add(barrel);
   const cell = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.09, 0.14), accentMat);
-  cell.position.set(0, -0.09, 0.05);
+  cell.position.set(0, -0.1, 0.05);
   parts.gun.add(cell);
+  const gunScope = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.05, 0.14), darkMat);
+  gunScope.position.set(0, 0.1, -0.05);
+  parts.gun.add(gunScope);
   parts.gun.position.set(-0.32, 1.12, 0.32);
   g.add(parts.gun);
 
-  // jetpack
+  // jetpack: body + twin fuel cells + fins + nozzles
   parts.pack = new THREE.Group();
-  const packBody = cast(new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.46, 0.18), darkMat));
+  const packBody = cast(new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.5, 0.2), darkMat));
   parts.pack.add(packBody);
   for (const s of [-1, 1]) {
-    const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.075, 0.14, 8), darkMat);
-    nozzle.position.set(s * 0.11, -0.3, 0);
+    const tank = cast(new THREE.Mesh(new THREE.CapsuleGeometry(0.085, 0.24, 3, 8), accentMat));
+    tank.position.set(s * 0.12, 0.02, -0.13);
+    parts.pack.add(tank);
+    const fin = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.24, 0.14), armorMat);
+    fin.position.set(s * 0.2, 0.06, -0.1);
+    parts.pack.add(fin);
+    const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.08, 0.16, 8), darkMat);
+    nozzle.position.set(s * 0.12, -0.32, -0.05);
     parts.pack.add(nozzle);
   }
-  parts.pack.position.set(0, 1.18, -0.26);
+  parts.pack.position.set(0, 1.18, -0.28);
   g.add(parts.pack);
 
-  // flame cones (visible only when thrusting)
+  // flame cones (outer colour + white-hot core), visible only when thrusting
   parts.flames = [];
   for (const s of [-1, 1]) {
-    const f = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.55, 8, 1, true), flameMat);
-    f.position.set(s * 0.11, -0.62, 0);
+    const f = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.6, 8, 1, true), flameMat);
+    f.position.set(s * 0.12, -0.66, -0.05);
     f.rotation.x = Math.PI;
     f.visible = false;
     parts.pack.add(f);
     parts.flames.push(f);
+    const core = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.4, 6, 1, true), flameCoreMat);
+    core.position.set(s * 0.12, -0.56, -0.05);
+    core.rotation.x = Math.PI;
+    core.visible = false;
+    parts.pack.add(core);
+    parts.flames.push(core);
   }
 
   return { group: g, parts };

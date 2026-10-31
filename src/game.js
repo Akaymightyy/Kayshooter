@@ -33,6 +33,8 @@ export class Game {
     this.roundT = 0;
     this.time = 0;
     this.pendingBooms = [];
+    this.roundKills = 0;
+    if (this.ctx.missions) this.ctx.missions.resetRound();
 
     // clear old bots
     for (const b of this.bots) this.removeBot(b, true);
@@ -41,8 +43,8 @@ export class Game {
     // reset world dynamics
     world.resetDynamic();
 
-    // player (facing the hangar across the deck)
-    player.reset(-8, 14, 0.34);
+    // player (facing the hangar across the deck; clear of the hover crate at -8,14)
+    player.reset(-8, 18.5, 0.34);
 
     // ---- enemies (grey-orange) ----
     const mk = (team, x, y, z, name, pts) => {
@@ -77,6 +79,7 @@ export class Game {
   endRound(won) {
     if (this.state !== 'live') return;
     this.state = 'end';
+    if (this.ctx.missions && !this.demoMode) this.ctx.missions.onRoundEnd(won, this.roundKills || 0);
     const dom = this.ctx.dom;
     dom.crosshair.classList.remove('on');
     if (document.pointerLockElement) document.exitPointerLock();
@@ -101,6 +104,16 @@ export class Game {
   updateDirector(dt) {
     this.roundT += dt;
     const player = this.ctx.player;
+
+    // mission zone tracking (hangar bay + sky bridge ends)
+    if (this.ctx.missions && !this.demoMode) {
+      const p = player.pos;
+      if (p.x > -40 && p.x < -10.5 && p.z < -26 && p.z > -44 && p.y < 12) this.ctx.missions.onHangar();
+      if (p.y > 4.3 && Math.abs(p.z + 10) < 2.6) {
+        if (p.x < 13.6) this.ctx.missions.onBridgeSide('w');
+        if (p.x > 28.2) this.ctx.missions.onBridgeSide('e');
+      }
+    }
 
     // trigger the pusher beat: player jets up, or timer, or few enemies left
     if (!this.pushersStarted) {
@@ -252,7 +265,7 @@ export class Game {
       if (panel.hp <= 0) {
         this.shatterPanel(panel);
       } else {
-        panel.crack.material.opacity = (1 - panel.hp / 70) * 0.9;
+        this.ctx.world.setPanelCrack(panel, 1 - panel.hp / 70);
       }
       return;
     }
@@ -284,6 +297,7 @@ export class Game {
     can.alive = false;
     can.collider.gone = true;
     can.grp.visible = false;
+    if (this.ctx.missions && !this.demoMode) this.ctx.missions.onCanister();
     this.ctx.fx.explosion(can.pos, 'orange', CONFIG.CANISTER_RADIUS);
     this.ctx.audio.explosion(this.spatial(can.pos).vol);
     this._radiusDamage(can.pos, CONFIG.CANISTER_RADIUS, CONFIG.CANISTER_DMG, CONFIG.CANISTER_IMPULSE, true);
@@ -345,6 +359,10 @@ export class Game {
     if (byPlayer) {
       this.flashCrosshair('kill');
       this.ctx.audio.killTick();
+      if (bot.team === 'enemy') {
+        this.roundKills = (this.roundKills || 0) + 1;
+        if (this.ctx.missions && !this.demoMode) this.ctx.missions.onKill(true);
+      }
     }
     if (this.enemiesAlive() === 0 && this.state === 'live') {
       setTimeout(() => this.endRound(true), 700);

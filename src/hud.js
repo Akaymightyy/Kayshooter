@@ -1,5 +1,6 @@
-// In-game HUD: minimap, health, fuel, ammo, timer, kill feed, hit marker, pause.
+// In-game HUD: minimap, health, fuel, ammo, timer, kill feed, hit marker, mission tracker, pause.
 import { CONFIG } from './config.js';
+import { MISSIONS } from './missions.js';
 import { addReward, renderProfile } from './lobby.js';
 
 export class Hud {
@@ -16,6 +17,7 @@ export class Hud {
           <div class="bar hp"><i id="hpFill"></i><span id="hpTxt">100</span></div>
           <div class="bar fuel"><i id="fuelFill"></i><span>JET</span></div>
         </div>
+        <div class="m-track" id="mTrack"></div>
       </div>
       <div class="h-tc">
         <div class="pill"><span>HOSTILES <b id="hEn">5</b></span><span class="tm" id="hTime">0:00</span><span>KILLS <b id="hKills">0</b></span></div>
@@ -34,7 +36,7 @@ export class Hud {
     document.body.appendChild(el);
     const $ = (id) => el.querySelector('#' + id);
     this.e = { hud: el, hp: $('hpFill'), hpT: $('hpTxt'), fuel: $('fuelFill'), en: $('hEn'), time: $('hTime'),
-      kills: $('hKills'), feed: $('feed'), ammo: $('hAmmo'), gren: $('hGren'), rld: $('hRld'), hitm: $('hitm'), mm: $('mm') };
+      kills: $('hKills'), feed: $('feed'), ammo: $('hAmmo'), gren: $('hGren'), rld: $('hRld'), hitm: $('hitm'), mm: $('mm'), mTrack: $('mTrack') };
     this.mmc = this.e.mm.getContext('2d');
 
     // hit marker follows the crosshair's hit/kill flash
@@ -123,6 +125,17 @@ export class Hud {
     if (player.reloadT >= 0) e.rld.firstElementChild.style.width = Math.min(100, player.reloadT / CONFIG.RELOAD_TIME * 100) + '%';
 
     if ((this.frame++ & 1) === 0) this.minimap(game, player);
+    if ((this.frame & 15) === 0) this.missionTrack();
+  }
+
+  missionTrack() {
+    const ms = this.ctx.missions;
+    if (!ms) return;
+    const rows = MISSIONS.filter((m) => !ms.done[m.id]).slice(0, 2).map((m) => {
+      const cur = Math.min(m.prog(ms.round), m.target);
+      return `<div class="mi"><span>◆ ${m.name}</span><b>${cur}/${m.target}</b></div>`;
+    }).join('');
+    if (this._mRows !== rows) { this.e.mTrack.innerHTML = rows; this._mRows = rows; }
   }
 
   minimap(game, player) {
@@ -134,8 +147,8 @@ export class Hud {
     c.fillStyle = 'rgba(8,10,9,.78)'; c.fillRect(0, 0, S, S);
     c.setTransform(s * cs, s * sn, -s * sn, s * cs,
       60 - s * (player.pos.x * cs - player.pos.z * sn), 60 - s * (player.pos.x * sn + player.pos.z * cs));
-    c.fillStyle = 'rgba(125,143,60,.28)'; c.fillRect(-60, -45, 120, 90);
-    c.strokeStyle = 'rgba(163,185,85,.7)'; c.lineWidth = 1 / s; c.strokeRect(-60, -45, 120, 90);
+    c.fillStyle = 'rgba(205,210,215,.3)'; c.fillRect(-60, -45, 120, 90);
+    c.strokeStyle = 'rgba(220,224,228,.75)'; c.lineWidth = 1 / s; c.strokeRect(-60, -45, 120, 90);
     for (const b of game.bots) {
       if (!b.alive) continue;
       c.fillStyle = b.team === 'enemy' ? '#ff5a2a' : '#8fd05a';

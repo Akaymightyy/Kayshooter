@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { COLORS } from './config.js';
 import { buildCanyon } from './canyon.js';
-import { deckTexture, panelWallTexture, hazardTexture, crackTexture, glowSprite } from './textures.js';
+import { deckTexture, panelWallTexture, hazardTexture, crackTexture, glowSprite, crateTexture, containerTexture } from './textures.js';
 
 const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
 
@@ -146,8 +146,8 @@ export class World {
   // ---------- main deck ----------
   _buildDeck() {
     const tex = deckTexture();
-    tex.repeat.set(24, 18);
-    const mat = new THREE.MeshStandardMaterial({ map: tex, color: 0xffffff, roughness: 0.72, metalness: 0.35 });
+    tex.repeat.set(18, 14);
+    const mat = new THREE.MeshStandardMaterial({ map: tex, color: 0xffffff, roughness: 0.88, metalness: 0.04 });
     const deck = new THREE.Mesh(new THREE.BoxGeometry(120, 44, 90), mat);
     deck.position.set(0, -22, 0);
     deck.receiveShadow = true;
@@ -172,6 +172,32 @@ export class World {
       r.position.set(x, 0.07, z);
       this.scene.add(r);
     }
+
+    // ---- yellow painted line markings ----
+    const yellow = new THREE.MeshStandardMaterial({ color: COLORS.lineYellow, roughness: 0.8, metalness: 0.02 });
+    const paint = (sx, sz, x, z, ry = 0) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(sx, 0.022, sz), yellow);
+      m.position.set(x, 0.012, z);
+      m.rotation.y = ry;
+      m.receiveShadow = true;
+      this.scene.add(m);
+      return m;
+    };
+    // perimeter guide line inset from the deck edges
+    for (const z of [42.2, -42.2]) paint(112, 0.28, 0, z);
+    for (const x of [57.2, -57.2]) paint(0.28, 84.4, x, 0);
+    // centre taxi line (dashed, runs north-south)
+    for (let z = -40; z <= 40; z += 6) paint(0.3, 2.6, 0, z);
+    // cross lines tying the west pad, hangar approach and east tower together
+    paint(16, 0.26, -38, 17.4);          // south of west pad
+    paint(0.26, 20, 9.5, 1);             // from spawn to bridge tower
+    paint(14, 0.26, 38, 2.4);            // east pad apron
+    // corner hatched keep-clear boxes
+    for (const [hx, hz2] of [[-50, 36], [50, 36], [-50, -36], [50, -36]]) {
+      for (let i = 0; i < 4; i++) {
+        paint(2.4, 0.22, hx - 1.2 + i * 0.8, hz2 - 1 + i * 0.66);
+      }
+    }
   }
 
   // ---------- hangar ----------
@@ -182,8 +208,12 @@ export class World {
     const tealMat = new THREE.MeshStandardMaterial({
       color: COLORS.teal, emissive: COLORS.teal, emissiveIntensity: 2.2, roughness: 0.4,
     });
+    const yellowMat = new THREE.MeshStandardMaterial({ color: 0xe8c93c, roughness: 0.75, metalness: 0.05 });
 
     const cx = -25, cz = -35, w = 31, d = 19, h = 12;
+    const RD = 1.5;                  // door recess depth
+    const wallZ = cz + d / 2;        // front wall plane
+    const doorZ = wallZ - RD;        // recessed door plane
     const g = new THREE.Group();
 
     const mkWall = (sx, sy, sz, x, y, z) => {
@@ -194,13 +224,39 @@ export class World {
       return m;
     };
     // left / right / back
-    mkWall(1, h, d, cx - w / 2, h / 2, cz).material = white;
+    mkWall(1, h, d, cx - w / 2, h / 2, cz);
     mkWall(1, h, d, cx + w / 2, h / 2, cz);
     mkWall(w, h, 1, cx, h / 2, cz - d / 2);
     // front segments (door opening: x in [-30,-20], h 8)
-    mkWall(10, h, 1, cx - 15.5, h / 2, cz + d / 2);
-    mkWall(10, h, 1, cx + 15.5, h / 2, cz + d / 2);
-    mkWall(11, 4, 1, cx, 10, cz + d / 2); // lintel
+    mkWall(10, h, 1, cx - 15.5, h / 2, wallZ);
+    mkWall(10, h, 1, cx + 15.5, h / 2, wallZ);
+    mkWall(11, 4, 1, cx, 10, wallZ); // lintel
+
+    // exterior panel-seam ribs (vertical) on the front face
+    for (const rx of [cx - 15.5, cx - 10.5, cx - 5.6, cx + 5.6, cx + 10.5, cx + 15.5]) {
+      const rib = new THREE.Mesh(new THREE.BoxGeometry(0.16, h, 0.16), trim);
+      rib.position.set(rx, h / 2, wallZ + 0.1);
+      rib.castShadow = true;
+      g.add(rib);
+    }
+    // side wall ribs
+    for (const s of [-1, 1]) {
+      for (const rz of [-6, 0, 6]) {
+        const rib = new THREE.Mesh(new THREE.BoxGeometry(0.16, h, 0.16), trim);
+        rib.position.set(cx + s * (w / 2 + 0.1), h / 2, cz + rz);
+        rib.castShadow = true;
+        g.add(rib);
+      }
+    }
+    // base skirt + top cornice
+    const skirt = new THREE.Mesh(new THREE.BoxGeometry(w, 0.5, 0.24), trim);
+    skirt.position.set(cx, 0.25, wallZ + 0.08);
+    skirt.castShadow = true;
+    g.add(skirt);
+    const cornice = new THREE.Mesh(new THREE.BoxGeometry(w + 0.3, 0.4, 0.3), trim);
+    cornice.position.set(cx, h - 0.2, wallZ + 0.1);
+    cornice.castShadow = true;
+    g.add(cornice);
 
     // flat modern roof + crown
     const roof = new THREE.Mesh(new THREE.BoxGeometry(w + 1.4, 2.2, d + 1.4), white);
@@ -209,20 +265,70 @@ export class World {
     g.add(roof); this.losMeshes.push(roof);
     const crown = new THREE.Mesh(new THREE.BoxGeometry(w * 0.4, 0.9, 0.6), trim);
     crown.position.set(cx + 4, h + 2.6, cz);
+    crown.castShadow = true;
     g.add(crown);
     // door pocket (hides the door as it retracts upward)
     const pocket = new THREE.Mesh(new THREE.BoxGeometry(11.4, 4.8, 0.9), white);
-    pocket.position.set(cx, 10.1, cz + d / 2);
+    pocket.position.set(cx, 10.1, doorZ - 0.1);
     g.add(pocket);
 
-    // teal trim strips around door
-    const strip = (sx, sy, sz, x, y, z) => {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), tealMat);
-      m.position.set(x, y, z); g.add(m);
-    };
-    strip(0.25, 8.4, 0.25, cx - 5.1, 4.2, cz + d / 2 + 0.08);
-    strip(0.25, 8.4, 0.25, cx + 5.1, 4.2, cz + d / 2 + 0.08);
-    strip(10.4, 0.25, 0.25, cx, 8.45, cz + d / 2 + 0.08);
+    // --- recessed door reveal ---
+    for (const s of [-1, 1]) {
+      const jamb = new THREE.Mesh(new THREE.BoxGeometry(0.7, 8, RD + 0.3), white);
+      jamb.position.set(cx + s * 5.65, 4, wallZ - RD / 2);
+      jamb.castShadow = true; jamb.receiveShadow = true;
+      g.add(jamb);
+    }
+    const lintelLip = new THREE.Mesh(new THREE.BoxGeometry(11.8, 0.6, 0.7), white);
+    lintelLip.position.set(cx, 8.3, wallZ - 0.15);
+    lintelLip.castShadow = true;
+    g.add(lintelLip);
+
+    // teal light strips inside the reveal
+    for (const s of [-1, 1]) {
+      const st = new THREE.Mesh(new THREE.BoxGeometry(0.1, 7.4, 0.1), tealMat);
+      st.position.set(cx + s * 5.32, 3.9, doorZ + 0.12);
+      g.add(st);
+    }
+    const stripH = new THREE.Mesh(new THREE.BoxGeometry(10.5, 0.1, 0.1), tealMat);
+    stripH.position.set(cx, 7.62, doorZ + 0.12);
+    g.add(stripH);
+    // teal wash light spilling over the threshold
+    this.doorGlow = new THREE.PointLight(COLORS.teal, 26, 16, 2.0);
+    this.doorGlow.position.set(cx, 5.5, doorZ + 0.6);
+    g.add(this.doorGlow);
+
+    // yellow threshold + dashed approach stripes on the deck
+    const threshold = new THREE.Mesh(new THREE.BoxGeometry(11.6, 0.06, 0.6), yellowMat);
+    threshold.position.set(cx, 0.031, doorZ + 1.05);
+    threshold.receiveShadow = true;
+    g.add(threshold);
+    for (const s of [-1, 1]) {
+      for (let i = 0; i < 6; i++) {
+        const dash = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.025, 1.5), yellowMat);
+        dash.position.set(cx + s * 3.2, 0.013, wallZ + 1.2 + i * 3.0);
+        dash.receiveShadow = true;
+        g.add(dash);
+      }
+    }
+    // hazard chevrons across the approach
+    const hz = hazardTexture();
+    hz.repeat.set(6, 1);
+    const chev = new THREE.Mesh(new THREE.BoxGeometry(11.6, 0.025, 0.9),
+      new THREE.MeshStandardMaterial({ map: hz, roughness: 0.8 }));
+    chev.position.set(cx, 0.013, wallZ + 1.0);
+    chev.receiveShadow = true;
+    g.add(chev);
+
+    // interior ceiling light strips + yellow floor border
+    for (const lz of [-8, -2]) {
+      const cl = new THREE.Mesh(new THREE.BoxGeometry(w - 6, 0.1, 0.5), tealMat);
+      cl.position.set(cx, h - 0.6, cz + lz);
+      g.add(cl);
+    }
+    const floorLine = new THREE.Mesh(new THREE.BoxGeometry(w - 3, 0.025, 0.3), yellowMat);
+    floorLine.position.set(cx, 0.013, cz - d / 2 + 1.5);
+    g.add(floorLine);
 
     // dark interior backwall glow
     const inner = new THREE.Mesh(new THREE.PlaneGeometry(w - 2, h - 2),
@@ -231,29 +337,60 @@ export class World {
     inner.rotation.y = Math.PI;
     g.add(inner);
 
-    // sliding door
+    // sliding door (recessed)
     const doorMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.45, metalness: 0.2, transparent: true });
     const door = new THREE.Mesh(new THREE.BoxGeometry(10.6, 8, 0.5), doorMat);
-    door.position.set(cx, 4, cz + d / 2);
+    door.position.set(cx, 4, doorZ);
     door.castShadow = true;
     g.add(door); this.losMeshes.push(door);
     const doorLight = new THREE.Mesh(new THREE.BoxGeometry(10.6, 0.3, 0.1), tealMat);
     doorLight.position.set(0, -3.7, 0.3);
     door.add(doorLight);
-    this.door = { mesh: door, baseY: 4, collider: this.addBoxCollider(cx, 4, cz + d / 2, 10.6, 8, 0.5) };
+    this.door = { mesh: door, baseY: 4, collider: this.addBoxCollider(cx, 4, doorZ, 10.6, 8, 0.5) };
 
     this.scene.add(g);
     // static colliders
     this.addBoxCollider(cx - w / 2, h / 2, cz, 1, h, d);
     this.addBoxCollider(cx + w / 2, h / 2, cz, 1, h, d);
     this.addBoxCollider(cx, h / 2, cz - d / 2, w, h, 1);
-    this.addBoxCollider(cx - 15.5, h / 2, cz + d / 2, 10, h, 1);
-    this.addBoxCollider(cx + 15.5, h / 2, cz + d / 2, 10, h, 1);
-    this.addBoxCollider(cx, 10, cz + d / 2, 11, 4.6, 1.2);
+    this.addBoxCollider(cx - 15.5, h / 2, wallZ, 10, h, 1);
+    this.addBoxCollider(cx + 15.5, h / 2, wallZ, 10, h, 1);
+    this.addBoxCollider(cx, 10, wallZ, 11, 4.6, 1.2);
     this.addBoxCollider(cx, h + 1.1, cz, w + 1.4, 2.2, d + 1.4); // roof solid
+    // recess reveal flanks
+    this.addBoxCollider(cx - 5.65, 4, wallZ - RD / 2, 0.7, 8, RD + 0.3);
+    this.addBoxCollider(cx + 5.65, 4, wallZ - RD / 2, 0.7, 8, RD + 0.3);
   }
 
   openHangarDoor() { if (this.doorOpenT < 0) this.doorOpenT = 0; }
+
+  /** Toggle real refraction glass (desktop/Ultra) vs cheap blended glass (mobile). */
+  setGlassQuality(fancy) {
+    const m = this.glassMat;
+    if (!m) return;
+    if (fancy) {
+      m.transparent = false;
+      m.transmission = 0.92;
+      m.opacity = 1;
+    } else {
+      m.transparent = true;
+      m.transmission = 0;
+      m.opacity = 0.24;
+    }
+    m.needsUpdate = true;
+  }
+
+  /** Progressive crack decals on a glass panel; k = damage 0..1. */
+  setPanelCrack(panel, k) {
+    if (!panel.alive || !panel.crack) return;
+    const stage = k < 0.35 ? 0 : k < 0.7 ? 1 : 2;
+    if (panel.crackStage !== stage) {
+      panel.crackStage = stage;
+      panel.crack.material.map = this.crackTex[stage];
+      panel.crack.material.needsUpdate = true;
+    }
+    panel.crack.material.opacity = Math.min(0.95, 0.15 + k);
+  }
 
   /** Restore all destructible/movable state for a fresh round. */
   resetDynamic() {
@@ -275,6 +412,9 @@ export class World {
       p.mesh.visible = true;
       p.crack.visible = true;
       p.crack.material.opacity = 0;
+      p.crack.material.map = this.crackTex[0];
+      p.crack.material.needsUpdate = true;
+      p.crackStage = -1;
       p.collider.gone = false;
     }
   }
@@ -452,26 +592,30 @@ export class World {
     this.scene.add(pillar); this.losMeshes.push(pillar);
     this.addBoxCollider(9.5, 2.25, -10, 1.6, 4.5, 1.6);
 
-    // glass panels from x=13 to x=29 at y=5
-    const glassMat = new THREE.MeshPhysicalMaterial({
-      color: 0xbfe8ff, transparent: true, opacity: 0.26, roughness: 0.05,
-      metalness: 0, envMapIntensity: 1.6, side: THREE.DoubleSide, depthWrite: false,
+    // real glass: physical material with transmission (quality-toggled)
+    this.glassMat = new THREE.MeshPhysicalMaterial({
+      color: 0xd8f3ff, roughness: 0.03, metalness: 0,
+      transparent: true, opacity: 0.24,
+      transmission: 0, thickness: 0.12, ior: 1.45,
+      clearcoat: 1, clearcoatRoughness: 0.06,
+      envMapIntensity: 2.0, side: THREE.DoubleSide, depthWrite: false,
     });
     const frameMat = new THREE.MeshStandardMaterial({ color: 0x3a4046, roughness: 0.5, metalness: 0.6 });
-    const crackTex = crackTexture();
+    // staged crack decals: 1 hairline, 2 cracked, 3 severe web
+    this.crackTex = [crackTexture(1), crackTexture(2), crackTexture(3)];
 
     const N = 6, x0 = 13, x1 = 28.6, segLen = (x1 - x0) / N;
     for (let i = 0; i < N; i++) {
       const cx = x0 + segLen * (i + 0.5);
 
-      const floorPanel = new THREE.Mesh(new THREE.BoxGeometry(segLen, 0.14, 3), glassMat);
+      const floorPanel = new THREE.Mesh(new THREE.BoxGeometry(segLen, 0.14, 3), this.glassMat);
       floorPanel.position.set(cx, 4.93, -10);
       floorPanel.renderOrder = 3;
       this.scene.add(floorPanel);
 
       const col = this.addBoxCollider(cx, 4.93, -10, segLen, 0.14, 3, { glass: true });
       const panel = {
-        mesh: floorPanel, collider: col, hp: 70, alive: true, crack: null,
+        mesh: floorPanel, collider: col, hp: 70, alive: true, crack: null, crackStage: -1,
         pos: V3(cx, 4.93, -10), size: V3(segLen, 0.14, 3),
       };
       col.glassPanel = panel;
@@ -480,7 +624,7 @@ export class World {
       // crack overlay (hidden until damaged)
       const crack = new THREE.Mesh(
         new THREE.PlaneGeometry(segLen * 0.9, 2.6),
-        new THREE.MeshBasicMaterial({ map: crackTex, transparent: true, opacity: 0, depthWrite: false })
+        new THREE.MeshBasicMaterial({ map: this.crackTex[0], transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide })
       );
       crack.rotation.x = -Math.PI / 2;
       crack.position.set(cx, 5.012, -10);
@@ -490,7 +634,7 @@ export class World {
 
       // side glass walls
       for (const s of [-1, 1]) {
-        const wall = new THREE.Mesh(new THREE.BoxGeometry(segLen, 1.05, 0.08), glassMat);
+        const wall = new THREE.Mesh(new THREE.BoxGeometry(segLen, 1.05, 0.08), this.glassMat);
         wall.position.set(cx, 5.55, -10 + s * 1.5);
         wall.renderOrder = 3;
         this.scene.add(wall);
@@ -606,24 +750,39 @@ export class World {
 
   // ---------- hover crates ----------
   _buildCrates() {
-    const bodyMat = new THREE.MeshStandardMaterial({ color: COLORS.crateTan, roughness: 0.65, metalness: 0.15 });
-    const cornerMat = new THREE.MeshStandardMaterial({ color: COLORS.crateDark, roughness: 0.5, metalness: 0.4 });
+    const steelMat = new THREE.MeshStandardMaterial({ map: crateTexture(), roughness: 0.5, metalness: 0.55, envMapIntensity: 0.85 });
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0x22262b, roughness: 0.48, metalness: 0.62 });
+    const rivetMat = new THREE.MeshStandardMaterial({ color: 0x9aa2aa, roughness: 0.35, metalness: 0.75 });
     const glowMat = new THREE.MeshStandardMaterial({ color: COLORS.teal, emissive: COLORS.teal, emissiveIntensity: 2.2 });
     const positions = [
       [-8, 14], [-16, -2], [-12, -7.5], [-24, -19], [30, 3], [33, 7], [16, 35],
     ];
+    const rivetGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.035, 6);
     for (const [x, z] of positions) {
       const grp = new THREE.Group();
       const size = 2.2;
-      const body = new THREE.Mesh(new THREE.BoxGeometry(size, size, size), bodyMat);
+      const body = new THREE.Mesh(new THREE.BoxGeometry(size, size, size), steelMat);
       body.castShadow = true; body.receiveShadow = true;
       grp.add(body); this.losMeshes.push(body);
-      // black corner posts
-      const cg = new THREE.BoxGeometry(0.3, size + 0.06, 0.3);
+      // bevelled lids (slightly larger plates top & bottom)
+      const lidGeo = new THREE.BoxGeometry(size + 0.1, 0.14, size + 0.1);
+      for (const s of [-1, 1]) {
+        const lid = new THREE.Mesh(lidGeo, frameMat);
+        lid.position.y = s * (size / 2 - 0.05);
+        lid.castShadow = true;
+        grp.add(lid);
+      }
+      // dark corner posts with steel rivet caps
+      const cg = new THREE.BoxGeometry(0.26, size + 0.04, 0.26);
       for (const [sx, sz] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) {
-        const c = new THREE.Mesh(cg, cornerMat);
-        c.position.set(sx * (size / 2 - 0.12), 0, sz * (size / 2 - 0.12));
+        const c = new THREE.Mesh(cg, frameMat);
+        c.position.set(sx * (size / 2 - 0.1), 0, sz * (size / 2 - 0.1));
         grp.add(c);
+        for (const s of [-1, 1]) {
+          const riv = new THREE.Mesh(rivetGeo, rivetMat);
+          riv.position.set(sx * (size / 2 - 0.1), s * (size / 2 + 0.005), sz * (size / 2 - 0.1));
+          grp.add(riv);
+        }
       }
       // teal underglow strip
       const strip = new THREE.Mesh(new THREE.BoxGeometry(size * 0.7, 0.08, size * 0.7), glowMat);
@@ -672,25 +831,44 @@ export class World {
 
   // ---------- stacked cargo containers ----------
   _buildContainers() {
-    const mat = new THREE.MeshStandardMaterial({ color: COLORS.crateTan, roughness: 0.7, metalness: 0.2 });
-    const dark = new THREE.MeshStandardMaterial({ color: COLORS.crateDark, roughness: 0.55, metalness: 0.4 });
+    const contMat = new THREE.MeshStandardMaterial({ map: containerTexture(), roughness: 0.55, metalness: 0.5, envMapIntensity: 0.75 });
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0x22262b, roughness: 0.5, metalness: 0.6 });
     const defs = [
       [-34, 1.3, 22, 6, 2.6, 2.6, 0], [-34, 3.9, 22, 6, 2.6, 2.6, 0],
       [-28.6, 1.3, 24.2, 2.6, 2.6, 6, 0], [-21, 1.3, 27.5, 6, 2.6, 2.6, 0.35],
     ];
     for (const [x, y, z, sx, sy, sz, ry] of defs) {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), ry ? mat.clone() : mat);
+      const m = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), contMat);
       m.position.set(x, y, z);
       m.rotation.y = ry;
       m.castShadow = true; m.receiveShadow = true;
       this.scene.add(m); this.losMeshes.push(m);
-      const corr = new THREE.Mesh(new THREE.BoxGeometry(sx * 1.01, sy * 0.9, sz * 1.01), dark);
-      corr.position.set(x, y, z);
-      corr.rotation.y = ry;
-      corr.material = new THREE.MeshStandardMaterial({
-        color: 0x000000, roughness: 0.8, wireframe: true, transparent: true, opacity: 0.18,
-      });
-      this.scene.add(corr);
+
+      const grp = new THREE.Group();
+      grp.position.set(x, y, z);
+      grp.rotation.y = ry;
+      this.scene.add(grp);
+      // corner castings (8)
+      const castGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+      for (const [qx, qy, qz] of [[-1, -1, -1], [-1, -1, 1], [-1, 1, -1], [-1, 1, 1], [1, -1, -1], [1, -1, 1], [1, 1, -1], [1, 1, 1]]) {
+        const cc = new THREE.Mesh(castGeo, frameMat);
+        cc.position.set(qx * (sx / 2 - 0.08), qy * (sy / 2 - 0.08), qz * (sz / 2 - 0.08));
+        cc.castShadow = true;
+        grp.add(cc);
+      }
+      // vertical corrugation ribs on the two long faces
+      const longX = sx >= sz;
+      const ribLen = longX ? sx : sz;
+      for (const s of [-1, 1]) {
+        for (const off of [-ribLen * 0.33, -ribLen * 0.11, ribLen * 0.11, ribLen * 0.33]) {
+          const rib = longX
+            ? new THREE.Mesh(new THREE.BoxGeometry(0.06, sy * 0.94, 0.1), frameMat)
+            : new THREE.Mesh(new THREE.BoxGeometry(0.1, sy * 0.94, 0.06), frameMat);
+          if (longX) rib.position.set(off, 0, s * (sz / 2 + 0.02));
+          else rib.position.set(s * (sx / 2 + 0.02), 0, off);
+          grp.add(rib);
+        }
+      }
       if (!ry) this.addBoxCollider(x, y, z, sx, sy, sz);
       else this.addBoxCollider(x, y, z, 5.6, 2.6, 5.6);
     }

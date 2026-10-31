@@ -5,8 +5,9 @@ export const COLORS = {
   sunColor: 0xfff3dd,
   fog: 0xd9ecff,
 
-  deck: 0x4a5058,
-  deckEdge: 0x363c44,
+  deck: 0xb2b7bb,
+  deckEdge: 0x8d949a,
+  lineYellow: 0xe8c93c,
   padDark: 0x3a3f46,
   buildingWhite: 0xf1f3f5,
   buildingTrim: 0x565e66,

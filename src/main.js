@@ -1,8 +1,10 @@
 import './ui.css';
 import { initTouch } from './touch.js';
+import { initGamepad } from './gamepad.js';
 import { Hud } from './hud.js';
 import { initSettings } from './settings.js';
 import { initLobby } from './lobby.js';
+import { Missions } from './missions.js';
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
@@ -61,6 +63,7 @@ ctx.world = new World(scene, renderer);
 ctx.fx = new Effects(scene);
 ctx.player = new Player(ctx);
 camera.add(ctx.player.rig);
+ctx.missions = new Missions();
 ctx.game = new Game(ctx);
 ctx.game.initBolts(BoltSystem);
 
@@ -70,8 +73,11 @@ const game = ctx.game;
 const audio = ctx.audio;
 const demoMode = game.demoMode;
 const touchMode = initTouch(player, game, dom);
-const settings = initSettings({ composer, bloom, audio: ctx.audio, player });
-initLobby(settings);
+// real refraction glass on desktop, cheap blended glass on phones
+world.setGlassQuality(!touchMode);
+const gamepad = initGamepad(player, game);
+const settings = initSettings({ composer, bloom, audio: ctx.audio, player, world, renderer });
+initLobby(settings, ctx.missions);
 const hud = demoMode ? null : new Hud(ctx, dom, settings);
 if (demoMode) ctx.player.rig.visible = false;
 
@@ -158,6 +164,8 @@ let demoStarted = false;
 function loop() {
   requestAnimationFrame(loop);
   let dt = Math.min(clock.getDelta(), 0.033);
+
+  gamepad.update(dt);
 
   if (demoMode) {
     if (!demoStarted && clock.elapsedTime > 0.8) {

@@ -41,7 +41,7 @@ const MODES = [
   { id: 'train', name: 'Training Ground', desc: 'Range, bots, no pressure' },
 ];
 
-export function initLobby(settings) {
+export function initLobby(settings, missions) {
   renderProfile();
   const wrap = document.getElementById('modes');
   wrap.innerHTML = MODES.map((m, i) => `
@@ -59,6 +59,9 @@ export function initLobby(settings) {
   document.getElementById('lobbyNav').addEventListener('click', (e) => {
     const b = e.target.closest('[data-nav]'); if (!b) return;
     if (b.dataset.nav === 'settings') settings.open();
+    else if (b.dataset.nav === 'missions' && missions) {
+      import('./missions.js').then((mod) => mod.openMissionsPanel(missions));
+    }
     else toast(b.textContent.trim() + ' — coming soon');
   });
 }

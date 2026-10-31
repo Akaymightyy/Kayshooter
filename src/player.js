@@ -49,10 +49,13 @@ export class Player {
 
   // ---------------- viewmodel ----------------
   _buildViewmodel() {
-    const chrome = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.38, metalness: 0.62, envMapIntensity: 0.45 });
-    const dark = new THREE.MeshStandardMaterial({ color: 0x2e3238, roughness: 0.45, metalness: 0.7 });
-    const glove = new THREE.MeshStandardMaterial({ color: 0x5e3fb8, roughness: 0.62, metalness: 0.12 });
-    const gloveDark = new THREE.MeshStandardMaterial({ color: 0x4a2f96, roughness: 0.6, metalness: 0.15 });
+    // white gloss ceramic armour + dark steel + purple gloves
+    const body = new THREE.MeshStandardMaterial({ color: 0xf2f4f6, roughness: 0.18, metalness: 0.28, envMapIntensity: 1.35 });
+    const bodySoft = new THREE.MeshStandardMaterial({ color: 0xe4e8ec, roughness: 0.32, metalness: 0.24, envMapIntensity: 1.0 });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x191c20, roughness: 0.4, metalness: 0.72 });
+    const gripMat = new THREE.MeshStandardMaterial({ color: 0x24272b, roughness: 0.66, metalness: 0.3 });
+    const glove = new THREE.MeshStandardMaterial({ color: 0x6a48c8, roughness: 0.52, metalness: 0.16 });
+    const gloveDark = new THREE.MeshStandardMaterial({ color: 0x53349e, roughness: 0.55, metalness: 0.18 });
     const pinkMat = new THREE.MeshStandardMaterial({ color: COLORS.pink, emissive: COLORS.pink, emissiveIntensity: 2.6, toneMapped: false });
     const tealMat = new THREE.MeshStandardMaterial({ color: COLORS.teal, emissive: COLORS.teal, emissiveIntensity: 2.0, toneMapped: false });
 
@@ -60,74 +63,109 @@ export class Player {
     this.gunGroup = new THREE.Group();
     this.rig.add(this.gunGroup);
 
-    // --- rifle body ---
-    const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.12, 0.52), chrome);
-    this.gunGroup.add(receiver);
-    const under = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.05, 0.4), dark);
-    under.position.set(0, -0.07, 0.02);
-    this.gunGroup.add(under);
-    // barrel
-    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.034, 0.34, 12), chrome);
-    barrel.rotation.x = Math.PI / 2;
-    barrel.position.set(0, 0.012, -0.42);
-    this.gunGroup.add(barrel);
-    const shroud = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.16, 12), dark);
-    shroud.rotation.x = Math.PI / 2;
-    shroud.position.set(0, 0.012, -0.28);
-    this.gunGroup.add(shroud);
-    // muzzle
-    const muzzleMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.055, 0.09, 12), dark);
-    muzzleMesh.rotation.x = Math.PI / 2;
-    muzzleMesh.position.set(0, 0.012, -0.55);
-    this.gunGroup.add(muzzleMesh);
-    const muzzleGlow = new THREE.Mesh(new THREE.CircleGeometry(0.034, 12), tealMat);
-    muzzleGlow.rotation.y = Math.PI;
-    muzzleGlow.position.set(0, 0.012, -0.596);
-    this.gunGroup.add(muzzleGlow);
-    // stock
-    const stock = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.09, 0.22), chrome);
-    stock.position.set(0, -0.01, 0.33);
-    stock.rotation.x = 0.08;
-    this.gunGroup.add(stock);
-    // top rail + handle
-    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.025, 0.4), dark);
-    rail.position.set(0, 0.075, -0.05);
-    this.gunGroup.add(rail);
-    const handle = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.05, 0.1), dark);
-    handle.position.set(0, 0.1, 0.06);
-    this.gunGroup.add(handle);
-    // grip
-    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.14, 0.07), dark);
-    grip.position.set(0, -0.12, 0.14);
-    grip.rotation.x = 0.32;
-    this.gunGroup.add(grip);
-    // side screen
-    const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.075, 0.04),
-      new THREE.MeshBasicMaterial({ map: gunScreenTexture(), toneMapped: false }));
-    screen.position.set(0.039, 0.02, 0.05);
-    screen.rotation.y = Math.PI / 2;
-    this.gunGroup.add(screen);
-    const screenL = screen.clone();
-    screenL.position.x = -0.039;
-    screenL.rotation.y = -Math.PI / 2;
-    this.gunGroup.add(screenL);
+    const mk = (geo, mat, x = 0, y = 0, z = 0, parent = this.gunGroup) => {
+      const m = new THREE.Mesh(geo, mat);
+      m.position.set(x, y, z);
+      parent.add(m);
+      return m;
+    };
 
-    // --- energy cell (mag) with hot-pink + teal coils ---
-    this.magGroup = new THREE.Group();
-    const cellBody = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.042, 0.17, 12), dark);
-    cellBody.rotation.z = Math.PI / 2;
-    this.magGroup.add(cellBody);
-    this.coilMats = [];
-    for (let i = 0; i < 5; i++) {
-      const isPink = i % 2 === 0;
-      const mat = (isPink ? pinkMat : tealMat).clone();
-      this.coilMats.push(mat);
-      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.052, 0.011, 8, 18), mat);
-      ring.rotation.y = Math.PI / 2;
-      ring.position.x = -0.06 + i * 0.03;
-      this.magGroup.add(ring);
+    // --- white glossy receiver ---
+    mk(new THREE.BoxGeometry(0.07, 0.11, 0.5), body, 0, 0, -0.02);
+    // inset dark side cheeks (panel seam look)
+    mk(new THREE.BoxGeometry(0.012, 0.07, 0.32), dark, 0.037, -0.006, -0.03);
+    mk(new THREE.BoxGeometry(0.012, 0.07, 0.32), dark, -0.037, -0.006, -0.03);
+    // top spine / upper housing
+    mk(new THREE.BoxGeometry(0.054, 0.028, 0.44), bodySoft, 0, 0.066, -0.06);
+    // under-barrel rail block
+    mk(new THREE.BoxGeometry(0.05, 0.045, 0.34), body, 0, -0.072, -0.06);
+    // barrel
+    const barrel = mk(new THREE.CylinderGeometry(0.024, 0.028, 0.36, 12), body, 0, 0.01, -0.44);
+    barrel.rotation.x = Math.PI / 2;
+    // hex handguard with dark vent slots
+    const shroud = mk(new THREE.CylinderGeometry(0.044, 0.05, 0.2, 6), bodySoft, 0, 0.01, -0.27);
+    shroud.rotation.x = Math.PI / 2;
+    for (let i = 0; i < 3; i++) {
+      mk(new THREE.BoxGeometry(0.104, 0.012, 0.02), dark, 0, 0.012, -0.22 - i * 0.05);
     }
-    this.magGroup.position.set(0, -0.115, -0.05);
+    // muzzle brake + white collar + glow tip
+    const muzzleMesh = mk(new THREE.CylinderGeometry(0.042, 0.048, 0.1, 12), dark, 0, 0.01, -0.57);
+    muzzleMesh.rotation.x = Math.PI / 2;
+    const collar = mk(new THREE.TorusGeometry(0.046, 0.009, 8, 16), body, 0, 0.01, -0.525);
+    const muzzleGlow = mk(new THREE.CircleGeometry(0.03, 12), tealMat, 0, 0.01, -0.624);
+    muzzleGlow.rotation.y = Math.PI;
+    // stock (white shell + dark recoil pad + cheek riser)
+    const stock = mk(new THREE.BoxGeometry(0.055, 0.085, 0.2), body, 0, -0.005, 0.34);
+    stock.rotation.x = 0.06;
+    mk(new THREE.BoxGeometry(0.06, 0.1, 0.045), gripMat, 0, -0.008, 0.45);
+    mk(new THREE.BoxGeometry(0.045, 0.028, 0.14), bodySoft, 0, 0.048, 0.36);
+    // top rail + picatinny notches
+    mk(new THREE.BoxGeometry(0.042, 0.016, 0.36), dark, 0, 0.086, -0.1);
+    for (let i = 0; i < 7; i++) {
+      mk(new THREE.BoxGeometry(0.048, 0.008, 0.012), dark, 0, 0.095, -0.24 + i * 0.048);
+    }
+    // pistol grip (dark) + white base plate
+    const grip = mk(new THREE.BoxGeometry(0.042, 0.13, 0.06), gripMat, 0, -0.118, 0.15);
+    grip.rotation.x = 0.3;
+    mk(new THREE.BoxGeometry(0.05, 0.014, 0.07), bodySoft, 0, -0.062, 0.145);
+    // trigger + guard hint
+    mk(new THREE.BoxGeometry(0.008, 0.03, 0.008), dark, 0, -0.062, 0.075);
+
+    // --- black scope with small screen ---
+    const scope = new THREE.Group();
+    scope.position.set(0, 0.128, -0.06);
+    this.gunGroup.add(scope);
+    const tube = mk(new THREE.CylinderGeometry(0.024, 0.024, 0.2, 12), dark, 0, 0, 0, scope);
+    tube.rotation.x = Math.PI / 2;
+    const bell = mk(new THREE.CylinderGeometry(0.032, 0.026, 0.06, 12), dark, 0, 0, -0.12, scope);
+    bell.rotation.x = Math.PI / 2;
+    const ocular = mk(new THREE.CylinderGeometry(0.028, 0.024, 0.05, 12), dark, 0, 0, 0.11, scope);
+    ocular.rotation.x = Math.PI / 2;
+    // glowing lens (front) + dark rear glass
+    const lens = mk(new THREE.CircleGeometry(0.025, 14),
+      new THREE.MeshStandardMaterial({ color: 0x9adfff, emissive: 0x35b8d8, emissiveIntensity: 0.9, roughness: 0.15, metalness: 0.4, toneMapped: false }),
+      0, 0, -0.151, scope);
+    lens.rotation.y = Math.PI;
+    mk(new THREE.CircleGeometry(0.021, 12),
+      new THREE.MeshStandardMaterial({ color: 0x101418, roughness: 0.1, metalness: 0.6 }),
+      0, 0, 0.136, scope);
+    // scope mounts
+    mk(new THREE.BoxGeometry(0.028, 0.03, 0.026), dark, 0, -0.03, -0.06, scope);
+    mk(new THREE.BoxGeometry(0.028, 0.03, 0.026), dark, 0, -0.03, 0.05, scope);
+    // turrets
+    const tur1 = mk(new THREE.CylinderGeometry(0.011, 0.011, 0.022, 8), gripMat, 0, 0.03, -0.03, scope);
+    const tur2 = mk(new THREE.CylinderGeometry(0.011, 0.011, 0.022, 8), gripMat, 0.026, 0, -0.03, scope);
+    tur1.rotation.z = 0; tur2.rotation.z = Math.PI / 2;
+    // small side screen on the scope
+    const screenMat = new THREE.MeshBasicMaterial({ map: gunScreenTexture(), toneMapped: false });
+    const bezelR = mk(new THREE.BoxGeometry(0.008, 0.034, 0.056), gripMat, 0.024, 0, 0.01, scope);
+    const screen = mk(new THREE.PlaneGeometry(0.05, 0.028), screenMat, 0.029, 0, 0.01, scope);
+    screen.rotation.y = Math.PI / 2;
+    mk(new THREE.BoxGeometry(0.008, 0.034, 0.056), gripMat, -0.024, 0, 0.01, scope);
+    const screenL = mk(new THREE.PlaneGeometry(0.05, 0.028), screenMat, -0.029, 0, 0.01, scope);
+    screenL.rotation.y = -Math.PI / 2;
+    screen.renderOrder = screenL.renderOrder = 2;
+
+    // --- glowing pink coil cell mounted on the right side ---
+    this.magGroup = new THREE.Group();
+    this.magBaseY = -0.016;
+    const cellHousing = mk(new THREE.CylinderGeometry(0.03, 0.03, 0.24, 14), dark, 0, 0, 0, this.magGroup);
+    cellHousing.rotation.x = Math.PI / 2;
+    const cellCore = mk(new THREE.CylinderGeometry(0.016, 0.016, 0.2, 10), pinkMat, 0, 0, 0, this.magGroup);
+    cellCore.rotation.x = Math.PI / 2;
+    this.coilMats = [];
+    for (let i = 0; i < 6; i++) {
+      const mat = pinkMat.clone();
+      this.coilMats.push(mat);
+      const ring = mk(new THREE.TorusGeometry(0.035, 0.009, 8, 20), mat, 0, 0, -0.088 + i * 0.035, this.magGroup);
+      // torus already encircles Z — no rotation needed
+    }
+    for (const s of [-1, 1]) {
+      const cap = mk(new THREE.CylinderGeometry(0.034, 0.034, 0.018, 14), body, 0, 0, s * 0.126, this.magGroup);
+      cap.rotation.x = Math.PI / 2;
+    }
+    mk(new THREE.BoxGeometry(0.014, 0.052, 0.26), dark, -0.024, 0, 0, this.magGroup);
+    this.magGroup.position.set(0.062, this.magBaseY, -0.05);
     this.gunGroup.add(this.magGroup);
 
     // --- purple gloves ---
@@ -147,6 +185,10 @@ export class Player {
       thumb.rotation.z = scale > 0 ? -0.7 : 0.7;
       thumb.rotation.x = 0.5;
       h.add(thumb);
+      // white armour plate on the back of the hand
+      const plate = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.018, 0.06), bodySoft);
+      plate.position.set(0, 0.045, 0.01);
+      h.add(plate);
       const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.062, 0.09, 10), gloveDark);
       cuff.rotation.x = Math.PI / 2 - 0.5;
       cuff.position.set(0, -0.02, 0.1);
@@ -162,15 +204,21 @@ export class Player {
     this.handL.position.set(-0.005, -0.075, -0.22);
     this.handL.rotation.set(0.5, 0, 0.1);
     this.gunGroup.add(this.handL);
-    // forearms angled off-screen
-    const armR = new THREE.Mesh(new THREE.CapsuleGeometry(0.05, 0.3, 3, 8), gloveDark);
-    armR.position.set(0.1, -0.22, 0.38);
-    armR.rotation.set(1.15, 0.1, -0.35);
-    this.gunGroup.add(armR);
-    const armL = new THREE.Mesh(new THREE.CapsuleGeometry(0.05, 0.3, 3, 8), gloveDark);
-    armL.position.set(-0.12, -0.18, -0.05);
-    armL.rotation.set(1.35, -0.15, 0.3);
-    this.gunGroup.add(armL);
+    // purple forearms with white armour bands
+    const mkArm = (x, y, z, rot, side) => {
+      const a = new THREE.Group();
+      a.position.set(x, y, z);
+      a.rotation.set(...rot);
+      const sleeve = new THREE.Mesh(new THREE.CapsuleGeometry(0.048, 0.26, 3, 8), gloveDark);
+      a.add(sleeve);
+      const band = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.055, 0.045, 10), bodySoft);
+      band.position.y = 0.1;
+      a.add(band);
+      this.gunGroup.add(a);
+      return a;
+    };
+    mkArm(0.1, -0.22, 0.38, [1.15, 0.1, -0.35], 1);
+    mkArm(-0.12, -0.18, -0.05, [1.35, -0.15, 0.3], -1);
 
     // muzzle anchor
     this.muzzleAnchor = new THREE.Object3D();
@@ -423,14 +471,15 @@ export class Player {
     const keys = this.keys;
 
     if (this.alive) {
-      // ---- movement input ----
-      const f = (keys['KeyW'] ? 1 : 0) - (keys['KeyS'] ? 1 : 0);
-      const s = (keys['KeyD'] ? 1 : 0) - (keys['KeyA'] ? 1 : 0);
+      // ---- movement input (keyboard booleans or analog touch vector) ----
+      const tm = this.touchMove;
+      const f = tm ? THREE.MathUtils.clamp(tm.y, -1, 1) : (keys['KeyW'] ? 1 : 0) - (keys['KeyS'] ? 1 : 0);
+      const s = tm ? THREE.MathUtils.clamp(tm.x, -1, 1) : (keys['KeyD'] ? 1 : 0) - (keys['KeyA'] ? 1 : 0);
       const sinY = Math.sin(this.yaw), cosY = Math.cos(this.yaw);
       let wishX = (-sinY * f + cosY * s);
       let wishZ = (-cosY * f - sinY * s);
       const wl = Math.hypot(wishX, wishZ);
-      if (wl > 0.001) { wishX /= wl; wishZ /= wl; }
+      if (wl > 1) { wishX /= wl; wishZ /= wl; }   // cap diagonals, keep analog magnitude
 
       const accel = this.grounded ? CONFIG.ACCEL_GROUND : CONFIG.ACCEL_AIR;
       if (this.grounded) {
@@ -616,7 +665,7 @@ export class Player {
       rz += pull * 0.55;
       // mag slides out
       const magPhase = THREE.MathUtils.smoothstep(k, 0.05, 0.3) - THREE.MathUtils.smoothstep(k, 0.55, 0.85);
-      this.magGroup.position.y = -0.115 - magPhase * 0.16;
+      this.magGroup.position.y = this.magBaseY - magPhase * 0.16;
       this.magGroup.rotation.z = magPhase * 0.9;
     } else if (this.inspectT >= 0) {
       const k = this.inspectT / 1.5;
@@ -630,7 +679,7 @@ export class Player {
       const pulse = 1 + wave * 2.6;
       for (const m of this.coilMats) m.emissiveIntensity = 2.3 * pulse;
     } else {
-      this.magGroup.position.y += (-0.115 - this.magGroup.position.y) * Math.min(1, dt * 12);
+      this.magGroup.position.y += (this.magBaseY - this.magGroup.position.y) * Math.min(1, dt * 12);
       this.magGroup.rotation.z += (0 - this.magGroup.rotation.z) * Math.min(1, dt * 12);
       const pulse = 1 + Math.sin(t * 3.2) * 0.18 + this.recoil * 1.8;
       for (const m of this.coilMats) m.emissiveIntensity = 2.3 * pulse;
