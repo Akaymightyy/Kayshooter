@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { COLORS } from './config.js';
+import { buildCanyon } from './canyon.js';
 import { deckTexture, panelWallTexture, hazardTexture, crackTexture, glowSprite } from './textures.js';
 
 const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -139,52 +140,7 @@ export class World {
 
   // ---------- canyon ----------
   _buildCanyon() {
-    const g = new THREE.Group();
-
-    const floorMat = new THREE.MeshStandardMaterial({ color: 0x9a5a38, roughness: 1, metalness: 0 });
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(900, 900, 48, 48), floorMat);
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.y = -46;
-    // gentle dune noise
-    const pos = floor.geometry.attributes.position;
-    for (let i = 0; i < pos.count; i++) {
-      const x = pos.getX(i), y = pos.getY(i);
-      pos.setZ(i, Math.sin(x * 0.045) * 2.2 + Math.cos(y * 0.05) * 1.8 + Math.sin(x * 0.011 + y * 0.017) * 3.2);
-    }
-    floor.geometry.computeVertexNormals();
-    floor.receiveShadow = false;
-    g.add(floor);
-
-    // near cliff walls under the plateau rim
-    const rockMat = new THREE.MeshStandardMaterial({ color: COLORS.canyonRed, roughness: 0.95 });
-    const rockDark = new THREE.MeshStandardMaterial({ color: COLORS.canyonDark, roughness: 0.95 });
-    const walls = [
-      [0, -30, -49, 130, 34, 10], [0, -30, 49, 130, 34, 10],
-      [-63, -30, 0, 10, 34, 100], [63, -30, 0, 10, 34, 100],
-    ];
-    for (const [x, y, z, sx, sy, sz] of walls) {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), Math.random() > 0.5 ? rockMat : rockDark);
-      m.position.set(x, y, z);
-      g.add(m);
-    }
-
-    // distant mesas
-    const mesaMat = new THREE.MeshStandardMaterial({ color: 0xb46a40, roughness: 0.98 });
-    const mesaCap = new THREE.MeshStandardMaterial({ color: 0xc98a5c, roughness: 0.98 });
-    const mesas = [
-      [-160, -22, -120, 30, 48], [-220, -18, 30, 26, 56], [180, -20, -140, 34, 44],
-      [150, -24, 120, 24, 40], [-60, -16, -220, 40, 60], [90, -18, 210, 30, 52],
-      [230, -12, -40, 20, 64], [-230, -14, -60, 22, 58], [40, -20, -260, 36, 46], [-120, -22, 180, 28, 48],
-    ];
-    for (const [x, y, z, r, h] of mesas) {
-      const m = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.78, r, h, 9), mesaMat);
-      m.position.set(x, y - h / 2, z);
-      const cap = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.62, r * 0.78, 6, 9), mesaCap);
-      cap.position.set(x, y - h + 3, z);
-      g.add(m, cap);
-    }
-
-    this.scene.add(g);
+    buildCanyon(this.scene);
   }
 
   // ---------- main deck ----------
