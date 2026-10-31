@@ -1,0 +1,18 @@
+{
+  "name": "spaceport-showdown",
+  "private": true,
+  "version": "1.0.0",
+  "description": "5v5 sci-fi arena FPS — cliffside spaceport over a red-rock canyon. Three.js + Vite, deployable on Vercel.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0 --port 3000 --strictPort",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 3000 --strictPort"
+  },
+  "dependencies": {
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "vite": "^7.1.11"
+  }
+}

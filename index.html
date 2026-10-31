@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SPACEPORT SHOWDOWN — 5v5 Arena FPS</title>
+  <style>
+    :root {
+      --teal: #35e0d0;
+      --pink: #ff3fae;
+      --green: #46ff6e;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0c10; }
+    body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: #eef4f6; }
+    #app { position: fixed; inset: 0; }
+    canvas { display: block; }
+
+    /* ---- crosshair (the only persistent HUD element) ---- */
+    #crosshair {
+      position: fixed; left: 50%; top: 50%; width: 22px; height: 22px;
+      transform: translate(-50%, -50%); pointer-events: none; z-index: 5;
+      opacity: 0; transition: opacity .25s;
+    }
+    #crosshair.on { opacity: .95; }
+    #crosshair span {
+      position: absolute; background: var(--green);
+      box-shadow: 0 0 3px rgba(20, 255, 90, .8); border-radius: 1px;
+      transition: background .06s, box-shadow .06s;
+    }
+    #crosshair span:nth-child(1) { left: 50%; top: 0; width: 2px; height: 6px; transform: translateX(-50%); }
+    #crosshair span:nth-child(2) { left: 50%; bottom: 0; width: 2px; height: 6px; transform: translateX(-50%); }
+    #crosshair span:nth-child(3) { top: 50%; left: 0; height: 2px; width: 6px; transform: translateY(-50%); }
+    #crosshair span:nth-child(4) { top: 50%; right: 0; height: 2px; width: 6px; transform: translateY(-50%); }
+    #crosshair.hit span { background: #ffffff; box-shadow: 0 0 5px #fff; }
+    #crosshair.kill span { background: var(--teal); box-shadow: 0 0 8px var(--teal); }
+
+    /* ---- feedback vignettes (non-HUD damage / boost feedback) ---- */
+    .vignette { position: fixed; inset: 0; pointer-events: none; opacity: 0; z-index: 4; }
+    #dmgVignette {
+      background: radial-gradient(ellipse at center, transparent 42%, rgba(255, 30, 30, .55) 100%);
+      transition: opacity .35s ease-out;
+    }
+    #boostVignette {
+      background: radial-gradient(ellipse at center, transparent 55%, rgba(53, 224, 208, .38) 100%);
+      transition: opacity .18s linear;
+    }
+
+    /* ---- overlays ---- */
+    .overlay {
+      position: fixed; inset: 0; z-index: 10; display: flex;
+      align-items: center; justify-content: center; flex-direction: column;
+      background: radial-gradient(ellipse at 50% 40%, rgba(10, 16, 22, .82), rgba(6, 8, 12, .95));
+      backdrop-filter: blur(6px); text-align: center; user-select: none;
+      transition: opacity .4s; cursor: pointer;
+    }
+    .overlay.hidden { opacity: 0; pointer-events: none; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 10px;
+      font-size: 12px; letter-spacing: .34em; color: var(--teal);
+      text-transform: uppercase; margin-bottom: 18px; font-weight: 600;
+    }
+    .badge::before, .badge::after { content: ''; width: 34px; height: 1px; background: linear-gradient(90deg, transparent, var(--teal)); }
+    .badge::after { background: linear-gradient(90deg, var(--teal), transparent); }
+    h1 {
+      font-size: clamp(34px, 6vw, 68px); font-weight: 800; letter-spacing: .06em;
+      line-height: 1.04; text-transform: uppercase;
+      background: linear-gradient(100deg, #fff 30%, #ffd9f2 55%, #c9fbf5 75%);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .sub { margin-top: 14px; font-size: 14px; color: #aebfc8; letter-spacing: .12em; text-transform: uppercase; }
+    .cta {
+      margin-top: 34px; font-size: 15px; font-weight: 700; letter-spacing: .28em;
+      text-transform: uppercase; color: #071013;
+      background: linear-gradient(100deg, var(--teal), #7dffd4);
+      padding: 15px 44px; border-radius: 3px;
+      box-shadow: 0 0 24px rgba(53, 224, 208, .45);
+      animation: pulse 1.8s ease-in-out infinite;
+    }
+    @keyframes pulse { 50% { box-shadow: 0 0 42px rgba(53, 224, 208, .75); } }
+    .controls {
+      margin-top: 30px; display: grid; grid-template-columns: auto auto;
+      gap: 7px 18px; font-size: 13px; color: #c3d2da; text-align: left;
+    }
+    .controls b {
+      color: var(--teal); font-weight: 700; text-align: right;
+      font-variant-numeric: tabular-nums; letter-spacing: .06em;
+    }
+    .note { margin-top: 26px; font-size: 11px; color: #6d7f8a; letter-spacing: .1em; }
+    #endOverlay h1 { background: linear-gradient(100deg, #fff, #b8ffe3); -webkit-background-clip: text; background-clip: text; }
+    #endOverlay.lost h1 { background: linear-gradient(100deg, #ffb3a0, #ff6d5a); -webkit-background-clip: text; background-clip: text; }
+    #loading { color: var(--teal); font-size: 13px; letter-spacing: .3em; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <div id="crosshair"><span></span><span></span><span></span><span></span></div>
+  <div id="dmgVignette" class="vignette"></div>
+  <div id="boostVignette" class="vignette"></div>
+
+  <div id="menuOverlay" class="overlay">
+    <div class="badge">Ranked Elimination &middot; 5v5 &middot; Rimside Spaceport</div>
+    <h1>Spaceport<br />Showdown</h1>
+    <div class="sub">Team elimination &mdash; wipe the grey-orange squad</div>
+    <div class="controls">
+      <b>WASD</b><span>Move / strafe</span>
+      <b>Mouse</b><span>Aim &middot; LMB fire plasma</span>
+      <b>Space</b><span>Jump &middot; hold = jetpack boost</span>
+      <b>R</b><span>Swap energy cell</span>
+      <b>G</b><span>Plasma grenade (sticky)</span>
+      <b>F</b><span>Inspect rifle</span>
+    </div>
+    <div class="cta" id="startBtn">Click to Deploy</div>
+    <div class="note">Energy cells, thruster fuel and grenades are finite &mdash; play clean.</div>
+  </div>
+
+  <div id="endOverlay" class="overlay hidden">
+    <div class="badge" id="endBadge">Round Over</div>
+    <h1 id="endTitle">ROUND WON</h1>
+    <div class="sub" id="endSub">Full squad wipe</div>
+    <div class="cta" id="againBtn">Redeploy</div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
